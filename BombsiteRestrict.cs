@@ -40,8 +40,8 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
             CCSPlayerController player = @event.Userid;
             var position = player.PlayerPawn.Value.AbsOrigin!;
             int iPosition = (int)position[0];
-            int minPosition = g_iDisabledPlantPosition - 300;
-            int maxPosition = g_iDisabledPlantPosition + 300;
+            int minPosition = g_iDisabledPlantPosition - 400;
+            int maxPosition = g_iDisabledPlantPosition + 400;
             if(iPosition <= maxPosition && iPosition >= minPosition){
                 Server.NextFrame(() =>{
                     player.PrintToCenter($"{Config.szWarnMsgCenter}");
@@ -59,8 +59,8 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
             var angle = player.PlayerPawn.Value.AbsRotation!;
             var velocity = player.PlayerPawn.Value.AbsVelocity;
             int iPosition = (int)position[0];
-            int minPosition = g_iDisabledPlantPosition - 300;
-            int maxPosition = g_iDisabledPlantPosition + 300;
+            int minPosition = g_iDisabledPlantPosition - 400;
+            int maxPosition = g_iDisabledPlantPosition + 400;
             if(iPosition <= maxPosition && iPosition >= minPosition){
                 Server.NextFrame(() =>{
                     position[2] += 50.00f;
@@ -130,7 +130,7 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
     private static int GetPlayersCount(){
         int iCount = 0;
         Utilities.GetPlayers().ForEach(player =>{
-            if(player.IsValid && !player.IsBot && (player.TeamNum == 1 || player.TeamNum == 2)){
+            if(!player.IsBot && (player.TeamNum == 1 || player.TeamNum == 2)){
                 iCount++;
             }
         });
