@@ -1,7 +1,7 @@
 ### CS2 Bombsite Restrict plugin using [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp)
 
 This plugin restricts the random bombsite of each round if there are less than X players in teams.
-When a player attempts to plant the bomb on a disabled site, hi will be teleported slightly upwards to cancel the bomb planting.
+When a player attempts to plant the bomb on a disabled site, he will be teleported slightly upwards to cancel the bomb planting.
 
 
 Configuration in
