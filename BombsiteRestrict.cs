@@ -17,13 +17,14 @@ public class GenerateConfig : BasePluginConfig
     [JsonPropertyName("Warning message chat")] public string szWarnMsgChat { get; set; } = "You can't plant the bomb on this site!";
     [JsonPropertyName("Warning message center")] public string szWarnMsgCenter { get; set; } = "You can't plant the bomb on this site!";
     [JsonPropertyName("Message type")] public int iWarnMsgType { get; set; } = 2;
+    [JsonPropertyName("Disabled site")] public int iDisabledSite { get; set; } = 0;
 }
 
 public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
 {
     public override string ModuleName => "Bombsites Restrict";
     public override string ModuleAuthor => "Nocky";
-    public override string ModuleVersion => "1.0.0";
+    public override string ModuleVersion => "1.0.1";
     private static float g_fBombisteA;
     private static float g_fBombisteB;
     private static int g_iDisabledPlantPosition;
@@ -80,8 +81,11 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
         if (!GameRules().WarmupPeriod){
             if (GetPlayersCount() <= Config.iMinPlayers){
                 SetupMapBombsites();
-                Random random = new Random();
-                int iSite = random.Next(1, 3);
+                int iSite = Config.iDisabledSite;
+                if (Config.iDisabledSite == 0){
+                    Random random = new Random();
+                    iSite = random.Next(1, 3);
+                }
                 DisableRandomPlant(iSite);
             }
             else{
