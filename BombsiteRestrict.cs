@@ -108,7 +108,6 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
     [GameEventHandler(HookMode.Pre)]
     public HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info){
         if (!GameRules().WarmupPeriod){
-            Server.PrintToChatAll($"x - {GetPlayersCount()}");
             if (GetPlayersCount() <= Config.iMinPlayers){
                 SetupMapBombsites();
                 int iSite = Config.iDisabledSite;
@@ -148,7 +147,6 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
         if(IsMapNuke()){
             g_fBombisteB = -700;
             g_fBombisteA = -350;
-            Server.PrintToChatAll("true");
         }
         else{
             var index = Utilities.FindAllEntitiesByDesignerName<CBaseEntity>("cs_player_manager");
