@@ -30,17 +30,37 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
     private static float g_fBombisteB;
     private static int g_iDisabledPlantPosition;
 
+    private static bool g_bPluginDisabled;
+
     public GenerateConfig Config{ get; set; } = null!;
     public void OnConfigParsed(GenerateConfig config){ 
         Config = config; 
     }
-    
-    [GameEventHandler(HookMode.Post)]
-    public HookResult EventEnterBombzone(EventEnterBombzone @event, GameEventInfo info)
+
+    public override void Load(bool hotReload)
     {
+        RegisterListener<Listeners.OnMapStart>(mapName =>{
+            Server.NextFrame(() =>{
+                var Bombsites = Utilities.FindAllEntitiesByDesignerName<CBaseEntity>("func_bomb_target");
+                if(Bombsites.Count() != 2){
+                    g_bPluginDisabled = true;
+                    Console.WriteLine($"[Bombsites] The Bombsite Restrict is disabled, because there are no bomb plants on this map.");
+                }
+                else{
+                    g_bPluginDisabled = false;
+                }
+            });
+        });
+    }
+
+    [GameEventHandler(HookMode.Post)]
+    public HookResult EventEnterBombzone(EventEnterBombzone @event, GameEventInfo info){
+        if (g_bPluginDisabled)
+            return HookResult.Continue; 
+
         if (g_iDisabledPlantPosition != 0 && @event.Hasbomb){
             CCSPlayerController player = @event.Userid;
-            var position = player.PlayerPawn.Value.AbsOrigin!;
+            var position = player.Pawn.Value.AbsOrigin!;
             if(IsMapNuke()){
                 int iPosition = (int)position[2];
                 int minPosition = g_iDisabledPlantPosition - 150;
@@ -65,13 +85,14 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
         return HookResult.Continue; 
     }
     [GameEventHandler(HookMode.Pre)]
-    public HookResult EventBombBeginplant(EventBombBeginplant @event, GameEventInfo info)
-    {
+    public HookResult EventBombBeginplant(EventBombBeginplant @event, GameEventInfo info){
+        if (g_bPluginDisabled)
+            return HookResult.Continue; 
         if (g_iDisabledPlantPosition != 0){
             CCSPlayerController player = @event.Userid;
-            var position = player.PlayerPawn.Value.AbsOrigin!;
-            var angle = player.PlayerPawn.Value.AbsRotation!;
-            var velocity = player.PlayerPawn.Value.AbsVelocity;
+            var position = player.Pawn.Value.AbsOrigin!;
+            var angle = player.Pawn.Value.AbsRotation!;
+            var velocity = player.Pawn.Value.AbsVelocity;
             if(IsMapNuke()){
                 int iPosition = (int)position[2];
                 int minPosition = g_iDisabledPlantPosition - 150;
@@ -107,6 +128,8 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
     }
     [GameEventHandler(HookMode.Pre)]
     public HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info){
+        if (g_bPluginDisabled)
+            return HookResult.Continue; 
         if (!GameRules().WarmupPeriod){
             if (GetPlayersCount() <= Config.iMinPlayers){
                 SetupMapBombsites();
