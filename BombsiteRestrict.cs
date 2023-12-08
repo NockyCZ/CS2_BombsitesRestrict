@@ -19,17 +19,18 @@ public class GenerateConfig : BasePluginConfig
     [JsonPropertyName("Count bots as players")] public bool bCountBots { get; set; } = false;
     [JsonPropertyName("Message type")] public int iWarnMsgType { get; set; } = 2;
     [JsonPropertyName("Disabled site")] public int iDisabledSite { get; set; } = 0;
+    [JsonPropertyName("Which team count as players")] public int iTeam { get; set; } = 0;
 }
 
 public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
 {
     public override string ModuleName => "Bombsites Restrict";
     public override string ModuleAuthor => "Nocky";
-    public override string ModuleVersion => "1.0.2";
-    private static float g_fBombisteA;
-    private static float g_fBombisteB;
+    public override string ModuleVersion => "1.0.4";
+    private static float g_fBombsiteA;
+    private static float g_fBombsiteB;
     private static int g_iDisabledPlantPosition;
-
+    private static int g_iDisabledSite;
     private static bool g_bPluginDisabled;
 
     public GenerateConfig Config{ get; set; } = null!;
@@ -44,7 +45,7 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
                 var Bombsites = Utilities.FindAllEntitiesByDesignerName<CBaseEntity>("func_bomb_target");
                 if(Bombsites.Count() != 2){
                     g_bPluginDisabled = true;
-                    Console.WriteLine($"[Bombsites] The Bombsite Restrict is disabled, because there are no bomb plants on this map.");
+                    Console.WriteLine("[Bombsites] The Bombsite Restrict is disabled, because there are no bomb plants on this map.");
                 }
                 else{
                     g_bPluginDisabled = false;
@@ -61,25 +62,15 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
         if (g_iDisabledPlantPosition != 0 && @event.Hasbomb){
             CCSPlayerController player = @event.Userid;
             var position = player.Pawn.Value.AbsOrigin!;
+            int iPosType = 0;
             if(IsMapNuke()){
-                int iPosition = (int)position[2];
-                int minPosition = g_iDisabledPlantPosition - 150;
-                int maxPosition = g_iDisabledPlantPosition + 150;
-                if(iPosition <= maxPosition && iPosition >= minPosition){
-                    Server.NextFrame(() =>{
-                        player.PrintToCenter($"{Config.szWarnMsgCenter}");
-                    });
-                }
+                iPosType = 2;
             }
-            else{
-                int iPosition = (int)position[0];
-                int minPosition = g_iDisabledPlantPosition - 400;
-                int maxPosition = g_iDisabledPlantPosition + 400;
-                if(iPosition <= maxPosition && iPosition >= minPosition){
-                    Server.NextFrame(() =>{
-                        player.PrintToCenter($"{Config.szWarnMsgCenter}");
-                    });
-                }
+            int iSite = GetNearestBombsite((int)position[iPosType]);
+            if(iSite == g_iDisabledSite && iSite != 0){
+                Server.NextFrame(() =>{
+                    player.PrintToCenter($"{Config.szWarnMsgCenter}");
+                });
             }
         }
         return HookResult.Continue; 
@@ -89,39 +80,23 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
         if (g_bPluginDisabled)
             return HookResult.Continue; 
         if (g_iDisabledPlantPosition != 0){
-            CCSPlayerController player = @event.Userid;
-            var position = player.Pawn.Value.AbsOrigin!;
-            var angle = player.Pawn.Value.AbsRotation!;
-            var velocity = player.Pawn.Value.AbsVelocity;
-            if(IsMapNuke()){
-                int iPosition = (int)position[2];
-                int minPosition = g_iDisabledPlantPosition - 150;
-                int maxPosition = g_iDisabledPlantPosition + 150;
-                if(iPosition <= maxPosition && iPosition >= minPosition){
-                    Server.NextFrame(() =>{
-                        position[2] += 50.00f;
-                        if (Config.iWarnMsgType == 0 || Config.iWarnMsgType == 2)
-                            player.PrintToChat($" {ChatColors.Red}[Bombsite] {ChatColors.Default}{Config.szWarnMsgChat}");
-                        if (Config.iWarnMsgType == 1 || Config.iWarnMsgType == 2)
-                            player.PrintToCenter($"{Config.szWarnMsgCenter}");
-                        player.Teleport(position, angle, velocity);
-                    });
-                }
+            var site = new CBombTarget(NativeAPI.GetEntityFromIndex(@event.Site));
+            int iSiteType;
+            if (site.IsBombSiteB){
+                iSiteType = 2;
             }
             else{
-                int iPosition = (int)position[0];
-                int minPosition = g_iDisabledPlantPosition - 400;
-                int maxPosition = g_iDisabledPlantPosition + 400;
-                if(iPosition <= maxPosition && iPosition >= minPosition){
-                    Server.NextFrame(() =>{
-                        position[2] += 50.00f;
-                        if (Config.iWarnMsgType == 0 || Config.iWarnMsgType == 2)
-                            player.PrintToChat($" {ChatColors.Red}[Bombsite] {ChatColors.Default}{Config.szWarnMsgChat}");
-                        if (Config.iWarnMsgType == 1 || Config.iWarnMsgType == 2)
-                            player.PrintToCenter($"{Config.szWarnMsgCenter}");
-                        player.Teleport(position, angle, velocity);
-                    });
-                }
+                iSiteType = 1;
+            }
+            if (g_iDisabledSite == iSiteType){
+                CCSPlayerController player = @event.Userid;
+                Server.NextFrame(() =>{
+                    player.DropActiveWeapon();
+                    if (Config.iWarnMsgType == 0 || Config.iWarnMsgType == 2)
+                        player.PrintToChat($" {ChatColors.Red}[Bombsite] {ChatColors.Default}{Config.szWarnMsgChat}");
+                    if (Config.iWarnMsgType == 1 || Config.iWarnMsgType == 2)
+                        player.PrintToCenter($"{Config.szWarnMsgCenter}");
+                });
             }
         }
         return HookResult.Continue; 
@@ -139,6 +114,7 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
                     iSite = random.Next(1, 3);
                 }
                 DisableRandomPlant(iSite);
+                g_iDisabledSite = iSite;
             }
             else{
                 g_iDisabledPlantPosition = 0;
@@ -150,7 +126,7 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
         switch(site){
             case 1:
             {
-                g_iDisabledPlantPosition = (int)g_fBombisteA;
+                g_iDisabledPlantPosition = (int)g_fBombsiteA;
                 string szMSG = $"{ChatColors.Red}[Bombsite] {ChatColors.Default}{Config.szDisablePlant}";
                 szMSG = szMSG.Replace("{SITE}", $" {ChatColors.Darkred}B{ChatColors.Default}");
                 Server.PrintToChatAll($" {szMSG}");
@@ -158,7 +134,7 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
             }
             case 2:
             {
-                g_iDisabledPlantPosition = (int)g_fBombisteB;
+                g_iDisabledPlantPosition = (int)g_fBombsiteB;
                 string szMSG = $"{ChatColors.Red}[Bombsite] {ChatColors.Default}{Config.szDisablePlant}";
                 szMSG = szMSG.Replace("{SITE}", $" {ChatColors.Darkred}A{ChatColors.Default}");
                 Server.PrintToChatAll($" {szMSG}");
@@ -168,14 +144,14 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
     }
     public void SetupMapBombsites(){
         if(IsMapNuke()){
-            g_fBombisteB = -700;
-            g_fBombisteA = -350;
+            g_fBombsiteB = -700;
+            g_fBombsiteA = -350;
         }
         else{
             var index = Utilities.FindAllEntitiesByDesignerName<CBaseEntity>("cs_player_manager");
             foreach (var pos in index){
-                g_fBombisteA = Schema.GetSchemaValue<float>(pos.Handle, "CCSPlayerResource", "m_bombsiteCenterA");
-                g_fBombisteB = Schema.GetSchemaValue<float>(pos.Handle, "CCSPlayerResource", "m_bombsiteCenterB");
+                g_fBombsiteA = Schema.GetSchemaValue<float>(pos.Handle, "CCSPlayerResource", "m_bombsiteCenterA");
+                g_fBombsiteB = Schema.GetSchemaValue<float>(pos.Handle, "CCSPlayerResource", "m_bombsiteCenterB");
             }
         }
     }
@@ -184,10 +160,37 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
             return true;
         return false;
     }
+    private int GetNearestBombsite(int pos){
+        int DistanceA = Math.Abs(pos - (int)g_fBombsiteA);
+        int DistanceB = Math.Abs(pos - (int)g_fBombsiteB);
+        if (DistanceA < DistanceB){
+            return 1;
+        }
+        else if (DistanceA > DistanceB){
+            return 2;
+        }
+        return 0;
+    }
     private int GetPlayersCount(){
         int iCount = 0;
         Utilities.GetPlayers().ForEach(player =>{
-            if((CsTeam)player.TeamNum == CsTeam.Terrorist || (CsTeam)player.TeamNum == CsTeam.CounterTerrorist){
+            if (Config.iTeam == 1 && (CsTeam)player.TeamNum == CsTeam.CounterTerrorist){
+                if(!Config.bCountBots){
+                    if(!player.IsBot)
+                        iCount++;
+                }
+                else
+                    iCount++;
+            }
+            else if (Config.iTeam == 2 && (CsTeam)player.TeamNum == CsTeam.Terrorist){
+                if(!Config.bCountBots){
+                    if(!player.IsBot)
+                        iCount++;
+                }
+                else
+                    iCount++;
+            }
+            else if(Config.iTeam == 0 && (CsTeam)player.TeamNum == CsTeam.Terrorist || (CsTeam)player.TeamNum == CsTeam.CounterTerrorist){
                 if(!Config.bCountBots){
                     if(!player.IsBot)
                         iCount++;
