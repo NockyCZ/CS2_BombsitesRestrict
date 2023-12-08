@@ -15,6 +15,7 @@ Configuration in
 | `Count bots as players` | If bots will be counted as valid players (`true` or `false`) |
 | `Message type` | Where will the warning message be sent (`0` - Chat , `1` - Center , `2` - Both) |
 | `Disabled site` | Which bombsite will be disabled (`0` - Random , `1` - A , `2` - B) |
+| `Which team count as players` | It allows setting which team will be considered as the 'Minimum players'. (`0` - Both teams , `1` - Only CT , `2` - Only T)|
 
 ### Installation
 1. Unzip into your servers `csgo/addons/counterstrikesharp/plugins/BombsiteRestrict/` dir
