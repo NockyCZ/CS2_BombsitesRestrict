@@ -16,17 +16,19 @@ public class GenerateConfig : BasePluginConfig
     [JsonPropertyName("Disabled site")] public int iDisabledSite { get; set; } = 0;
     [JsonPropertyName("Which team count as players")] public int iTeam { get; set; } = 0;
     [JsonPropertyName("Send plant restrict message to team")] public int iMessageTeam { get; set; } = 0;
-    [JsonPropertyName("Allow center message")] public bool bAllowedCenter { get; set; } = true;
+    [JsonPropertyName("Center message timer")] public int iTimer { get; set; } = 15;
 }
 
 public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
 {
     public override string ModuleName => "Bombsites Restrict";
     public override string ModuleAuthor => "Nocky";
-    public override string ModuleVersion => "1.0.6";
+    public override string ModuleVersion => "1.0.7";
+    private static CounterStrikeSharp.API.Modules.Timers.Timer? hudTimer;
     private static int g_iDisabledSite;
     private static int g_iMessageTeam;
     private static bool g_bPluginDisabled;
+    private static bool g_bShowHudMsg = false;
 
     public GenerateConfig Config { get; set; } = null!;
     public void OnConfigParsed(GenerateConfig config)
@@ -37,7 +39,7 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
     {
         RegisterListener<Listeners.OnTick>(() =>
         {
-            if (Config.bAllowedCenter && g_iDisabledSite != 0)
+            if (g_bShowHudMsg && g_iDisabledSite != 0)
             {
                 foreach (var p in Utilities.GetPlayers().Where(p => p.IsValid && !p.IsBot && !p.IsHLTV))
                 {
@@ -56,6 +58,7 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
                 }
             }
         });
+        RegisterListener<Listeners.OnMapEnd>(() => { hudTimer?.Kill(); });
         RegisterListener<Listeners.OnMapStart>(mapName =>
         {
             Server.NextFrame(() =>
@@ -110,6 +113,8 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
         if (g_bPluginDisabled)
             return HookResult.Continue;
 
+        g_bShowHudMsg = false;
+        hudTimer?.Kill();
         var Sites = Utilities.FindAllEntitiesByDesignerName<CBaseEntity>("func_bomb_target");
         foreach (var entity in Sites)
         {
@@ -142,12 +147,20 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
                 {
                     foreach (var player in Utilities.GetPlayers().Where(p => p.IsValid && !p.IsBot && !p.IsHLTV && p.TeamNum == g_iMessageTeam))
                     {
-                        player.PrintToChat($"{Localizer["Prefix"]} {Localizer["Bombsite_Disabled", site]}");
+                        player.PrintToChat($"{Localizer["Prefix"]} {Localizer["Bombsite_Disabled", site, Config.iMinPlayers]}");
                     }
                 }
                 else
                 {
-                    Server.PrintToChatAll($"{Localizer["Prefix"]} {Localizer["Bombsite_Disabled", site]}");
+                    Server.PrintToChatAll($"{Localizer["Prefix"]} {Localizer["Bombsite_Disabled", site, Config.iMinPlayers]}");
+                }
+                if (Config.iTimer > 0)
+                {
+                    g_bShowHudMsg = true;
+                    hudTimer = AddTimer(Config.iTimer, () =>
+                    {
+                        g_bShowHudMsg = false;
+                    });
                 }
             }
             else
