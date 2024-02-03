@@ -1,5 +1,5 @@
 {
   "Prefix": "{darkred}[Bombsite]{default}",
-  "Bombsite_Disabled": "In this round, the bomb can only be planted on {green}{0}",
+  "Bombsite_Disabled": "In this round, the bomb can only be planted on {green}{0}", // YOU CAN ALSO USE {1} - TO DISPLAY HOW MANY PLAYERS NEED TO BE BOMBSITES RESTRICTED
   "Bombsite_Disabled_Center": "<font class='fontSize-l' color='orange'>Only {0}</font>"
 }
