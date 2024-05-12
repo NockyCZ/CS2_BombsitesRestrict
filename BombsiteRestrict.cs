@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
@@ -6,10 +6,10 @@ using CounterStrikeSharp.API.Modules.Utils;
 using System.Text.Json.Serialization;
 using CounterStrikeSharp.API.Modules.Commands;
 
-namespace BombsiteRestrict;
 
-[MinimumApiVersion(142)]
-public class GenerateConfig : BasePluginConfig
+namespace BombsiteRestrict;
+[MinimumApiVersion(202)]
+public class Config : BasePluginConfig
 {
     [JsonPropertyName("Minimum players")] public int iMinPlayers { get; set; } = 6;
     [JsonPropertyName("Count bots as players")] public bool bCountBots { get; set; } = false;
@@ -19,34 +19,29 @@ public class GenerateConfig : BasePluginConfig
     [JsonPropertyName("Center message timer")] public int iTimer { get; set; } = 15;
 }
 
-public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
+public class BombsiteRestrict : BasePlugin, IPluginConfig<Config>
 {
-    public override string ModuleName => "Bombsites Restrict";
-    public override string ModuleAuthor => "Nocky";
-    public override string ModuleVersion => "1.0.7";
+    public override string ModuleName => "Bombsite Restrict";
+    public override string ModuleAuthor => "Nocky (SourceFactory.eu)";
+    public override string ModuleVersion => "1.0.8";
+    public Config Config { get; set; } = new Config();
+    public void OnConfigParsed(Config config) { Config = config; }
     private static CounterStrikeSharp.API.Modules.Timers.Timer? hudTimer;
-    private static int g_iDisabledSite;
-    private static int g_iMessageTeam;
-    private static bool g_bPluginDisabled;
-    private static bool g_bShowHudMsg = false;
-
-    public GenerateConfig Config { get; set; } = null!;
-    public void OnConfigParsed(GenerateConfig config)
-    {
-        Config = config;
-    }
+    private int disabledSite;
+    private int teamMessages;
+    private bool isPluginDisabled;
     public override void Load(bool hotReload)
     {
         RegisterListener<Listeners.OnTick>(() =>
         {
-            if (g_bShowHudMsg && g_iDisabledSite != 0)
+            if (disabledSite != 0)
             {
-                foreach (var p in Utilities.GetPlayers().Where(p => p.IsValid && !p.IsBot && !p.IsHLTV))
+                var site = disabledSite == 1 ? "B" : "A";
+                foreach (var p in Utilities.GetPlayers().Where(p => !p.IsBot && !p.IsHLTV))
                 {
-                    string site = g_iDisabledSite == 1 ? "B" : "A";
-                    if (g_iMessageTeam == (byte)CsTeam.CounterTerrorist || g_iMessageTeam == (byte)CsTeam.Terrorist)
+                    if (teamMessages == 3 || teamMessages == 2)
                     {
-                        if (p.TeamNum == g_iMessageTeam)
+                        if (p.TeamNum == teamMessages)
                         {
                             p.PrintToCenterHtml($"{Localizer["Bombsite_Disabled_Center", site]}");
                         }
@@ -58,30 +53,35 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
                 }
             }
         });
-        RegisterListener<Listeners.OnMapEnd>(() => { hudTimer?.Kill(); });
+
+        RegisterListener<Listeners.OnMapEnd>(() =>
+        {
+            if (hudTimer != null)
+                hudTimer.Kill();
+        });
         RegisterListener<Listeners.OnMapStart>(mapName =>
         {
             Server.NextFrame(() =>
             {
-                g_iDisabledSite = 0;
-                g_iMessageTeam = Config.iMessageTeam;
-                if (g_iMessageTeam == 1)
-                    g_iMessageTeam = (byte)CsTeam.CounterTerrorist;
-                else if (g_iMessageTeam == 2)
-                    g_iMessageTeam = (byte)CsTeam.Terrorist;
+                disabledSite = 0;
+                teamMessages = Config.iMessageTeam;
+                if (teamMessages == 1)
+                    teamMessages = 3;
+                else if (teamMessages == 2)
+                    teamMessages = 2;
 
 
                 var Bombsites = Utilities.FindAllEntitiesByDesignerName<CBaseEntity>("func_bomb_target");
                 if (Bombsites.Count() != 2)
                 {
-                    g_bPluginDisabled = true;
+                    isPluginDisabled = true;
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("[Bombsite Restrict] The Bombsite Restrict plugin is disabled, because there are no bomb plants on this map.");
                     Console.ResetColor();
                 }
                 else
                 {
-                    g_bPluginDisabled = false;
+                    isPluginDisabled = false;
                 }
             });
         });
@@ -110,23 +110,27 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
     [GameEventHandler(HookMode.Pre)]
     public HookResult OnRoundEnd(EventRoundEnd @event, GameEventInfo info)
     {
-        if (g_bPluginDisabled)
+        if (isPluginDisabled)
             return HookResult.Continue;
 
-        g_bShowHudMsg = false;
-        hudTimer?.Kill();
+        if (hudTimer != null)
+            hudTimer.Kill();
+
+        disabledSite = 0;
         var Sites = Utilities.FindAllEntitiesByDesignerName<CBaseEntity>("func_bomb_target");
         foreach (var entity in Sites)
         {
-            entity.AcceptInput("Enable");
+            if (entity.IsValid)
+                entity.AcceptInput("Enable");
         }
 
         return HookResult.Continue;
     }
-    [GameEventHandler(HookMode.Pre)]
+
+    [GameEventHandler(HookMode.Post)]
     public HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
     {
-        if (g_bPluginDisabled)
+        if (isPluginDisabled)
             return HookResult.Continue;
 
         if (!GameRules().WarmupPeriod)
@@ -139,13 +143,13 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
                     Random random = new Random();
                     iSite = random.Next(1, 3);
                 }
-                g_iDisabledSite = iSite;
-                string site = g_iDisabledSite == 1 ? "B" : "A";
+                disabledSite = iSite;
+                string site = disabledSite == 1 ? "B" : "A";
                 DisableBombsite();
 
-                if (g_iMessageTeam == (byte)CsTeam.CounterTerrorist || g_iMessageTeam == (byte)CsTeam.Terrorist)
+                if (teamMessages == 3 || teamMessages == 2)
                 {
-                    foreach (var player in Utilities.GetPlayers().Where(p => p.IsValid && !p.IsBot && !p.IsHLTV && p.TeamNum == g_iMessageTeam))
+                    foreach (var player in Utilities.GetPlayers().Where(p => !p.IsBot && !p.IsHLTV && p.TeamNum == teamMessages))
                     {
                         player.PrintToChat($"{Localizer["Prefix"]} {Localizer["Bombsite_Disabled", site, Config.iMinPlayers]}");
                     }
@@ -154,62 +158,47 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<GenerateConfig>
                 {
                     Server.PrintToChatAll($"{Localizer["Prefix"]} {Localizer["Bombsite_Disabled", site, Config.iMinPlayers]}");
                 }
-                if (Config.iTimer > 0)
+                if (Config.iTimer > 1)
                 {
-                    g_bShowHudMsg = true;
                     hudTimer = AddTimer(Config.iTimer, () =>
                     {
-                        g_bShowHudMsg = false;
+                        disabledSite = 0;
                     });
                 }
             }
             else
             {
-                g_iDisabledSite = 0;
+                disabledSite = 0;
             }
         }
         return HookResult.Continue;
     }
-    private static void DisableBombsite()
+    private void DisableBombsite()
     {
         var Sites = Utilities.FindAllEntitiesByDesignerName<CBaseEntity>("func_bomb_target");
         foreach (var entity in Sites)
         {
             var site = new CBombTarget(NativeAPI.GetEntityFromIndex((int)entity.Index));
             int entitySite = site.IsBombSiteB ? 2 : 1;
-            if (entitySite == g_iDisabledSite)
-                entity.AcceptInput("Disable");
+            if (entitySite == disabledSite)
+            {
+                if (entity.IsValid)
+                    entity.AcceptInput("Disable");
+            }
         }
     }
     private int GetPlayersCount()
     {
-        int iCount = 0;
-        foreach (var player in Utilities.GetPlayers().Where(p => p.IsValid && !p.IsHLTV && p.Connected == PlayerConnectedState.PlayerConnected))
-        {
-            if (Config.iTeam == 0 && (player.TeamNum == (byte)CsTeam.Terrorist || player.TeamNum == (byte)CsTeam.CounterTerrorist))
-            {
-                if (!Config.bCountBots && !player.IsBot)
-                {
-                    iCount++;
-                }
-                else if (Config.bCountBots)
-                {
-                    iCount++;
-                }
-            }
-            else if ((Config.iTeam == 1 || Config.iTeam == 2) && player.TeamNum == Config.iTeam + 1)
-            {
-                if (!Config.bCountBots && !player.IsBot)
-                {
-                    iCount++;
-                }
-                else if (Config.bCountBots)
-                {
-                    iCount++;
-                }
-            }
-        }
-        return iCount;
+        var playersList = Utilities.GetPlayers().Where(p => !p.IsHLTV && p.Connected == PlayerConnectedState.PlayerConnected && (p.Team == CsTeam.Terrorist || p.Team == CsTeam.CounterTerrorist)).ToList();
+
+        if (!Config.bCountBots)
+            playersList.RemoveAll(p => p.IsBot);
+
+        if (Config.iTeam == 1 || Config.iTeam == 2)
+            playersList.RemoveAll(p => p.TeamNum != Config.iTeam + 1);
+
+        Server.PrintToChatAll($"{playersList.Count()}");
+        return playersList.Count();
     }
     internal static CCSGameRules GameRules()
     {
