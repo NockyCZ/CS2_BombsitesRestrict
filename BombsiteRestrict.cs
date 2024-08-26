@@ -33,7 +33,7 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<Config>
     {
         RegisterListener<Listeners.OnTick>(() =>
         {
-            if (disabledSite != 0)
+            if (disabledSite != 0 && Config.iTimer > 0)
             {
                 var site = disabledSite == 1 ? "B" : "A";
                 foreach (var p in Utilities.GetPlayers().Where(p => !p.IsBot && !p.IsHLTV))
