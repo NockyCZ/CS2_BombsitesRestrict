@@ -8,7 +8,6 @@ using CounterStrikeSharp.API.Modules.Commands;
 
 
 namespace BombsiteRestrict;
-[MinimumApiVersion(202)]
 public class Config : BasePluginConfig
 {
     [JsonPropertyName("Minimum players")] public int iMinPlayers { get; set; } = 6;
@@ -23,7 +22,7 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<Config>
 {
     public override string ModuleName => "Bombsite Restrict";
     public override string ModuleAuthor => "Nocky (SourceFactory.eu)";
-    public override string ModuleVersion => "1.0.8";
+    public override string ModuleVersion => "1.0.9";
     public Config Config { get; set; } = new Config();
     public void OnConfigParsed(Config config) { Config = config; }
     private static CounterStrikeSharp.API.Modules.Timers.Timer? hudTimer;
@@ -197,7 +196,6 @@ public class BombsiteRestrict : BasePlugin, IPluginConfig<Config>
         if (Config.iTeam == 1 || Config.iTeam == 2)
             playersList.RemoveAll(p => p.TeamNum != Config.iTeam + 1);
 
-        Server.PrintToChatAll($"{playersList.Count()}");
         return playersList.Count();
     }
     internal static CCSGameRules GameRules()
