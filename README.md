@@ -1,5 +1,5 @@
 <p align="center">
-<b>Bombsite Restrict</b> is a plugin that restricts the bombsites of each round if there are less than X players in teams.<br>
+<b>Bombsite Restrict</b> is a CS2 plugin that restricts the bombsites of each round if there are less than X players in teams.<br>
 Designed for <a href="https://github.com/roflmuffin/CounterStrikeSharp">CounterStrikeSharp</a> framework<br>
 <br>
 <a href="https://buymeacoffee.com/sourcefactory">
